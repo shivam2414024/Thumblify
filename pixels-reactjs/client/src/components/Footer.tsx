@@ -22,7 +22,7 @@ export default function Footer() {
                         <ul className="mt-2 space-y-2">
                             {section.links.map((link: IFooterLink, index: number) => (
                                 <li key={index}>
-                                    <Link to={link.href} className="hover:text-pink-600 transition">
+                                    <Link to={link.href === '#' ? '/' : link.href.startsWith('#') ? `/${link.href}` : link.href} className="hover:text-pink-600 transition">
                                         {link.name}
                                     </Link>
                                 </li>

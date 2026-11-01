@@ -52,7 +52,7 @@ const MyGeneration = () => {
          if(!confirm) return;
          const {data} = await api.delete(`/api/thumbnail/delete/${id}`)
          toast.success(data.message)
-         setThumbnails(thumbnails.filter((t)=> t._id !== id));
+         setThumbnails(current => current.filter((thumbnail) => thumbnail._id !== id));
        } catch (error: any) {
          console.error(error);
          toast.error(error?.response?.data?.message || error.message)
@@ -62,6 +62,9 @@ const MyGeneration = () => {
     useEffect(()=>{
         if(isLoggedIn){
             fetchThumbnails()
+        } else {
+            setThumbnails([])
+            setLoading(false)
         }
     },[isLoggedIn])
 
@@ -84,7 +87,14 @@ const MyGeneration = () => {
                 </div>
              )}
              {/* EMPTY STATE */}
-             {!loading && thumbnails.length === 0 && (
+                 {!loading && !isLoggedIn && (
+                     <div className="text-center py-24">
+                          <h3 className="text-lg font-semibold text-zinc-200">Login required</h3>
+                          <p className="text-sm text-zinc-400 mt-2">Sign in to view your generated thumbnails</p>
+                          <Link to="/login" className="inline-block mt-4 text-pink-400 hover:underline">Login</Link>
+                     </div>
+                 )}
+                 {!loading && isLoggedIn && thumbnails.length === 0 && (
                 <div className="text-center py-24">
                     <h3 className="text-lg font-semibold text-zinc-200">No thumbnails yet</h3>
                     <p className="text-sm text-zinc-400 mt-2">Generate your first thumbnail to see it here</p>
@@ -92,7 +102,7 @@ const MyGeneration = () => {
              )}
 
              {/* GRID */}
-             {!loading && thumbnails.length > 0 && (
+             {!loading && isLoggedIn && thumbnails.length > 0 && (
                 <div className="columns-1 sm:columns-2 lg:columns-3 2xl:columns-4 gap-8">
                     {thumbnails.map((thumb: IThumbnail)=>{
                         const aspectClass = aspectRatioClassMap[thumb.aspect_ratio || '16:9'];
@@ -120,18 +130,20 @@ const MyGeneration = () => {
                                     <span className='px-2 py-0.5 rounded bg-white/8'>{thumb.color_scheme}</span>
                                     <span className='px-2 py-0.5 rounded bg-white/8'>{thumb.aspect_ratio}</span>
                                    </div>
-                                   <p className='text-xs text-zinc-500'>{new Date(thumb.createdAt!).toDateString()}</p>
+                                   <p className='text-xs text-zinc-500'>{thumb.createdAt ? new Date(thumb.createdAt).toDateString() : 'Date unavailable'}</p>
                                 </div>
 
                                 <div onClick={(e)=>e.stopPropagation()} className="absolute bottom-2 right-2 max-sm:flex sm:hidden group-hover:flex gap-1.5">
 
                                     <TrashIcon onClick={()=> handleDelete(thumb._id)} className="size-6 bg-black/50 p-1 rounded hover:bg-pink-600 transition-all"/>
 
-                                    <DownloadIcon onClick={()=> handleDownload(thumb.image_url!)} className="size-6 bg-black/50 p-1 rounded hover:bg-pink-600 transition-all"/>
+                                    {thumb.image_url && <DownloadIcon onClick={()=> handleDownload(thumb.image_url!)} className="size-6 bg-black/50 p-1 rounded hover:bg-pink-600 transition-all"/>}
                                     
-                                    <Link target="_blank" to={`/preview?thumbnail_url=${thumb.image_url}&title=${thumb.title}`}>
-                                    <ArrowUpRightIcon className="size-6 bg-black/50 p-1 rounded hover:bg-pink-600 transition-all"/>
-                                    </Link>
+                                    {thumb.image_url && (
+                                        <Link target="_blank" to={`/preview?thumbnail_url=${encodeURIComponent(thumb.image_url)}&title=${encodeURIComponent(thumb.title)}`}>
+                                            <ArrowUpRightIcon className="size-6 bg-black/50 p-1 rounded hover:bg-pink-600 transition-all"/>
+                                        </Link>
+                                    )}
                                 </div>
                             </div>
                         )

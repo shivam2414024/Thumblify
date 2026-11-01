@@ -5,7 +5,7 @@ export const footerData: IFooter[] = [
         title: "Product",
         links: [
             { name: "Home", href: "#" },
-            { name: "Support", href: "#support" },
+            { name: "Support", href: "/#contact" },
             { name: "Pricing", href: "#pricing" },
             { name: "Affiliate", href: "#affiliate" },
         ]
@@ -17,7 +17,7 @@ export const footerData: IFooter[] = [
             { name: "Blogs", href: "#blogs" },
             { name: "Community", href: "#community" },
             { name: "Careers", href: "#careers" },
-            { name: "About", href: "#about" },
+            { name: "About", href: "/#features" },
         ]
     },
     {

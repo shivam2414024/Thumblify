@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom"
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom"
 import { colorSchemes, type AspectRatio, type IThumbnail, type ThumbnailStyle } from "../assets/assets";
 import SoftBackdrop from "../components/SoftBackdrop";
 import AspectRatioSelector from "../components/AspectRatioSelector";
@@ -15,7 +15,6 @@ import api from "../configs/api";
 const Generate = () => {
 
     const {id} = useParams();
-    const {pathname} = useLocation()
     const navigate = useNavigate()
     const {isLoggedIn} = useAuth()
 
@@ -45,14 +44,20 @@ const Generate = () => {
             text_overlay: true,
         }
 
-        const {data} = await api.post('/api/thumbnail/generate', api_payload)
-        if(data.thumbnail){
-            navigate('/generate/' + data.thumbnail._id)
-            toast.success(data.message)
+        try {
+            const {data} = await api.post('/api/thumbnail/generate', api_payload)
+            if(data.thumbnail){
+                navigate('/generate/' + data.thumbnail._id)
+                toast.success(data.message)
+            }
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || error.message || 'Thumbnail generation failed')
+        } finally {
+            setLoading(false)
         }
     }
 
-    const fetchThumbnail = async () => {
+    const fetchThumbnail = useCallback(async () => {
         try {
             const { data } = await api.get(`/api/user/thumbnail/${id}`);
             setThumbnail(data?.thumbnail as IThumbnail);
@@ -66,7 +71,7 @@ const Generate = () => {
             console.log(error);
             toast.error(error?.response?.data?.message || error.message)
         }
-    }
+    }, [id])
 
     useEffect(()=>{
         if(isLoggedIn && id){
@@ -78,13 +83,11 @@ const Generate = () => {
             },5000);
             return ()=> clearInterval(interval)
         }
-    },[id, loading, isLoggedIn])
+    },[fetchThumbnail, id, loading, isLoggedIn])
 
     useEffect(()=>{
-        if(!id && thumbnail){
-            setThumbnail(null)
-        }
-    },[pathname])
+        setThumbnail(null)
+    },[id])
 
     return (
         <>
@@ -119,7 +122,7 @@ const Generate = () => {
                             {/* DETAILS */}
                             <div className="space-y-2">
                                 <label className="block text-sm font-medium">Additional Prompts <span className="text-zinc-400 text-xs">(optional)</span></label>
-                                <textarea value={additionalDetails} onChange={(e)=>setAdditionalDetails(e.target.value)} rows={3} placeholder="Add any specific elements, mood, or style preferences..." className="w-full px-4 py-3 rounded-lg border border-white/10 bg-white/6 text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"/>
+                                <textarea value={additionalDetails} onChange={(e)=>setAdditionalDetails(e.target.value)} maxLength={500} rows={3} placeholder="Add any specific elements, mood, or style preferences..." className="w-full px-4 py-3 rounded-lg border border-white/10 bg-white/6 text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"/>
                             </div>
 
 
@@ -127,7 +130,7 @@ const Generate = () => {
 
                             {/* BUTTON */}
                             {!id && (
-                                <button onClick={handleGenerate} className="text-[15px] w-full py-3.5 rounded-xl font-medium bg-linear-to-b from-pink-500 to-pink-600 hover:from-pink-700 disabled:cursor-not-allowed transition-colors">
+                                <button onClick={handleGenerate} disabled={loading} className="text-[15px] w-full py-3.5 rounded-xl font-medium bg-linear-to-b from-pink-500 to-pink-600 hover:from-pink-700 disabled:cursor-not-allowed transition-colors">
                                     {loading ? 'Generating...' : 'Generate Thumbnail'}
                                 </button>
                             )}

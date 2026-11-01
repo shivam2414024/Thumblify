@@ -1,6 +1,9 @@
 import { Request, Response } from 'express'
+import mongoose from 'mongoose';
 import Thumbnail from '../models/Thumbnail.js';
+import User from '../models/User.js';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import axios from 'axios';
 import {v2 as cloudinary} from 'cloudinary'
@@ -32,15 +35,64 @@ const dimensionsMap: Record<string, [number, number]> = {
     '4:3': [1024, 768],
 }
 
+const getLegacyPublicId = (imageUrl?: string) => {
+    if (!imageUrl) return null;
+
+    try {
+        const url = new URL(imageUrl);
+        if (url.hostname !== 'res.cloudinary.com') return null;
+        const match = url.pathname.match(/\/image\/upload\/(?:.*\/)?(final-output-\d+)(?:\.png)?$/);
+        return match?.[1] ?? null;
+    } catch {
+        return null;
+    }
+}
+
 export const generateThumbnail = async (req: Request, res: Response)=>{
     let thumbnail: any = null;
+    let tempFilePath: string | null = null;
+    let uploadedPublicId: string | null = null;
+    let generationLock: {userId: string; until: Date} | null = null;
     try {
         const {userId} = req.session;
+        if (!userId) {
+            return res.status(401).json({message: 'You are not logged in'})
+        }
         const { title, prompt: user_prompt, style, aspect_ratio, color_scheme, text_overlay } = req.body;
+
+        if (
+            typeof title !== 'string' || !title.trim() || title.trim().length > 100 ||
+            typeof style !== 'string' || !Object.prototype.hasOwnProperty.call(stylePrompts, style) ||
+            !['16:9', '1:1', '9:16'].includes(aspect_ratio) ||
+            (color_scheme !== undefined && (typeof color_scheme !== 'string' || !Object.prototype.hasOwnProperty.call(colorSchemeDescriptions, color_scheme))) ||
+            (user_prompt !== undefined && (typeof user_prompt !== 'string' || user_prompt.length > 500)) ||
+            (text_overlay !== undefined && typeof text_overlay !== 'boolean')
+        ) {
+            return res.status(400).json({message: 'Invalid thumbnail options'})
+        }
+        const normalizedTitle = title.trim()
+
+        const now = new Date();
+        const lockUntil = new Date(now.getTime() + 3 * 60 * 1000);
+        const lockedUser = await User.findOneAndUpdate(
+            {
+                _id: userId,
+                $or: [
+                    {generationLockUntil: {$exists: false}},
+                    {generationLockUntil: {$lte: now}},
+                ],
+            },
+            {$set: {generationLockUntil: lockUntil}},
+            {new: true, select: '_id'}
+        );
+        if (!lockedUser) {
+            return res.status(409).json({message: 'A thumbnail is already generating'})
+        }
+        generationLock = {userId, until: lockUntil};
 
         thumbnail = await Thumbnail.create({
             userId,
-            title,
+            title: normalizedTitle,
             prompt_used: user_prompt,
             user_prompt,
             style,
@@ -50,17 +102,17 @@ export const generateThumbnail = async (req: Request, res: Response)=>{
             isGenerating: true
         })
 
-        let prompt = `Create a ${stylePrompts[style as keyof typeof stylePrompts]} for: "${title}"`
+        let prompt = `Create a ${stylePrompts[style as keyof typeof stylePrompts]} for: "${normalizedTitle}".`
 
         if(color_scheme){
-            prompt += `Use a ${colorSchemeDescriptions[color_scheme as keyof typeof colorSchemeDescriptions]} color scheme.`
+            prompt += ` Use a ${colorSchemeDescriptions[color_scheme as keyof typeof colorSchemeDescriptions]} color scheme.`
         }
 
         if(user_prompt){
-            prompt += `Additional details: ${user_prompt}.`
+            prompt += ` Additional details: ${user_prompt}.`
         }
 
-        prompt += `The thumbnail should be ${aspect_ratio}, visually stunning, and designed to maximize click-throungh rate. Make it bold, professional, and impossible to ignore.`
+        prompt += ` The thumbnail should be ${aspect_ratio}, visually stunning, and designed to maximize click-through rate. Make it bold, professional, and impossible to ignore.`
 
         // Generate image using Pollinations.ai (free, no API key required)
         const [width, height] = dimensionsMap[aspect_ratio] || [1024, 576];
@@ -87,24 +139,35 @@ export const generateThumbnail = async (req: Request, res: Response)=>{
         }
 
         const filename = `final-output-${Date.now()}.png`;
-        const filePath = path.join('images', filename);
-
-        // Create the images directory if it doesn't exist
-        fs.mkdirSync('images', {recursive: true })
+        const filePath = path.join(os.tmpdir(), filename);
+        tempFilePath = filePath;
 
         // Write the final image to the file 
         fs.writeFileSync(filePath, finalBuffer!);
 
         const uploadResult = await cloudinary.uploader.upload(filePath, {resource_type:'image'})
+        uploadedPublicId = uploadResult.public_id;
 
-        thumbnail.image_url = uploadResult.url;
+        thumbnail.public_id = uploadedPublicId;
+        thumbnail.image_url = text_overlay
+            ? cloudinary.url(uploadResult.public_id, {
+                secure: true,
+                transformation: [
+                    {
+                        crop: 'fit',
+                        width: Math.max(100, width - 80),
+                        background: 'black',
+                        color: 'white',
+                        overlay: {font_family: 'Arial', font_size: 48, text: title},
+                    },
+                    {gravity: 'south', y: 40, flags: 'layer_apply'},
+                ],
+            })
+            : uploadResult.secure_url;
         thumbnail.isGenerating = false;
         await thumbnail.save()
 
         res.json({message: 'Thumbnail Generated', thumbnail})
-
-        // remove image file from disk
-        fs.unlinkSync(filePath)
 
     } catch (error: any) {
         if (error.response) {
@@ -117,6 +180,14 @@ export const generateThumbnail = async (req: Request, res: Response)=>{
             console.log(error);
         }
 
+        if (uploadedPublicId) {
+            try {
+                await cloudinary.uploader.destroy(uploadedPublicId, {resource_type: 'image'})
+            } catch (cleanupError) {
+                console.log('Failed to clean up uploaded thumbnail:', cleanupError)
+            }
+        }
+
         // Clean up the stuck thumbnail record so it doesn't linger with isGenerating: true
         if (thumbnail?._id) {
             try {
@@ -126,7 +197,27 @@ export const generateThumbnail = async (req: Request, res: Response)=>{
             }
         }
 
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Thumbnail generation failed' });
+    } finally {
+        if (generationLock) {
+            try {
+                await User.updateOne(
+                    {_id: generationLock.userId, generationLockUntil: generationLock.until},
+                    {$unset: {generationLockUntil: 1}}
+                )
+            } catch (cleanupError) {
+                console.error('Failed to release thumbnail generation lock:', cleanupError)
+            }
+        }
+        if (tempFilePath) {
+            try {
+                fs.unlinkSync(tempFilePath)
+            } catch (cleanupError: any) {
+                if (cleanupError.code !== 'ENOENT') {
+                    console.error('Failed to clean up temporary image:', cleanupError)
+                }
+            }
+        }
     }
 }
 
@@ -137,11 +228,23 @@ export const deleteThumbnail = async (req: Request, res: Response)=>{
         const {id} = req.params;
         const {userId} = req.session;
 
-        await Thumbnail.findByIdAndDelete({_id: id, userId})
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(400).json({ message: 'Invalid thumbnail ID' })
+        }
+
+        const thumbnail = await Thumbnail.findOne({_id: id, userId})
+        if (!thumbnail) {
+            return res.status(404).json({ message: 'Thumbnail not found' })
+        }
+        const publicId = thumbnail.public_id || getLegacyPublicId(thumbnail.image_url)
+        if (publicId) {
+            await cloudinary.uploader.destroy(publicId, {resource_type: 'image'})
+        }
+        await thumbnail.deleteOne()
 
         res.json({ message: 'Thumbnail deleted successfully'});
     } catch (error: any) {
         console.log(error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: 'Thumbnail deletion failed' });
     }
 }

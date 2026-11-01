@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 
 export default function ContactSection() {
     return (
-        <div className="px-4 md:px-16 lg:px-24 xl:px-32">
+        <div id="contact" className="px-4 md:px-16 lg:px-24 xl:px-32">
             <SectionTitle text1="Contact" text2="Grow your channel" text3="Have questions about our AI? Ready to scale your views? Let's talk." />
             
             <form onSubmit={(e) => e.preventDefault()} className='grid sm:grid-cols-2 gap-3 sm:gap-5 max-w-2xl mx-auto text-slate-300 mt-16 w-full' >

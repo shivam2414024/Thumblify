@@ -36,7 +36,7 @@ const Login = () => {
         if(user){
             navigate('/')
         }
-    },[user])
+    },[user, navigate])
 
     return (
         <>
@@ -65,11 +65,11 @@ const Login = () => {
 
                 <div className=" flex items-center mt-4 w-full bg-white/5 ring-2 ring-white/10 focus-within:ring-pink-500/60 h-12 rounded-full overflow-hidden pl-6 gap-2 transition-all ">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-white/75" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"> <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /> </svg>
-                    <input type="password" name="password" placeholder="Password" className="w-full bg-transparent text-white placeholder-white/60 border-none outline-none" value={formData.password} onChange={handleChange} required />
+                    <input type="password" name="password" placeholder="Password" minLength={state === "register" ? 8 : undefined} className="w-full bg-transparent text-white placeholder-white/60 border-none outline-none" value={formData.password} onChange={handleChange} required />
                 </div>
 
                 <div className="mt-4 text-left">
-                    <button className="text-sm text-pink-400 hover:underline">
+                    <button type="button" className="text-sm text-pink-400 hover:underline">
                         Forget password?
                     </button>
                 </div>

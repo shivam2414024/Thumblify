@@ -1,7 +1,6 @@
 import type React from "react";
 import { ChevronDownIcon, CpuIcon, ImageIcon, PenToolIcon, SparkleIcon, SquareIcon } from "lucide-react";
 import { thumbnailStyles, type ThumbnailStyle } from "../assets/assets"
-import { div } from "motion/react-client";
 
 
 const StyleSelector = ({value, onChange, isOpen, setIsOpen} : {value: ThumbnailStyle; onChange: (style: ThumbnailStyle)=> void; isOpen: boolean; setIsOpen: (open: boolean)=>void}) => {

@@ -9,6 +9,7 @@ export interface IThumbnail extends Document {
     color_scheme?: "vibrant" | "sunset" | "forest" | "neon" | "purple" | "monochrome" | "ocean" | "pastel";
     text_overlay?: boolean;
     image_url?: string;
+    public_id?: string;
     prompt_used?: string;
     user_prompt?: string;
     isGenerating?: boolean;
@@ -26,10 +27,12 @@ const ThumbnailSchema = new mongoose.Schema<IThumbnail>(
        color_scheme: {type: String, enum: ["vibrant" , "sunset" , "forest" , "neon" , "purple" , "monochrome" , "ocean" , "pastel"]}, 
        text_overlay: {type: Boolean, default: false},
        image_url: {type: String, default: ''},
+    public_id: {type: String},
        prompt_used: {type: String},
        user_prompt: {type: String},
        isGenerating: {type: Boolean, default: true},
-    }
+    },
+    {timestamps: true}
 )
 
 const Thumbnail = mongoose.models.Thumbnail || mongoose.model<IThumbnail>('Thumbnail', ThumbnailSchema)

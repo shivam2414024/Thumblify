@@ -36,8 +36,8 @@ export const AuthProvider = ({children}: {children: React.ReactNode})=>{
                 setIsLoggedIn(true)
             }
             toast.success(data.message)
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Account creation failed. Please try again.')
         }
     }
 
@@ -49,8 +49,8 @@ export const AuthProvider = ({children}: {children: React.ReactNode})=>{
                 setIsLoggedIn(true)
             }
             toast.success(data.message)
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Login failed. Please try again.')
         }
     }
 
@@ -60,8 +60,8 @@ export const AuthProvider = ({children}: {children: React.ReactNode})=>{
             setUser(null)
             setIsLoggedIn(false)
             toast.success(data.message)
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message || 'Logout failed. Please try again.')
         }
     }
 
@@ -72,8 +72,10 @@ export const AuthProvider = ({children}: {children: React.ReactNode})=>{
                 setUser(data.user as IUser)
                 setIsLoggedIn(true)
             }
-        } catch (error) {
-            console.log(error);
+        } catch (error: any) {
+            if (error?.response?.status !== 401) {
+                console.log(error);
+            }
         }
     }
 

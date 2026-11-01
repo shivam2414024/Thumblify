@@ -26,9 +26,9 @@ export default function Navbar() {
                     <Link to='/' className="hover:text-pink-300 transition">Home</Link>
                     <Link to='/generate' className="hover:text-pink-300 transition">Generate</Link>
                     {
-                        isLoggedIn ? <Link to='/my-generation' className="hover:text-pink-300 transition">My Generations</Link> : <Link to='#' className="hover:text-pink-300 transition">About</Link>
+                        isLoggedIn ? <Link to='/my-generation' className="hover:text-pink-300 transition">My Generations</Link> : <a href="/#features" className="hover:text-pink-300 transition">About</a>
                     }
-                    <Link to='#' className="hover:text-pink-300 transition">Contact us</Link>
+                    <a href="/#contact" className="hover:text-pink-300 transition">Contact us</a>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -58,8 +58,8 @@ export default function Navbar() {
             <div className={`fixed inset-0 z-100 bg-black/40 backdrop-blur flex flex-col items-center justify-center text-lg gap-8 md:hidden transition-transform duration-400 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
                 <Link onClick={() => setIsOpen(false)} to='/'>Home</Link>
                 <Link onClick={() => setIsOpen(false)} to='/generate'>Generate</Link>
-                {isLoggedIn ? <Link onClick={() => setIsOpen(false)} to='/my-generation'>My Generations</Link> : <Link onClick={() => setIsOpen(false)} to='#'>About</Link>}
-                <Link onClick={() => setIsOpen(false)} to='#'>Contact us</Link>
+                {isLoggedIn ? <Link onClick={() => setIsOpen(false)} to='/my-generation'>My Generations</Link> : <a onClick={() => setIsOpen(false)} href="/#features">About</a>}
+                <a onClick={() => setIsOpen(false)} href="/#contact">Contact us</a>
                 {isLoggedIn ? <button onClick={()=>{setIsOpen(false); logout()}}>Logout</button> : <Link onClick={() => setIsOpen(false)} to='/login'>Login</Link>}
 
                 <button onClick={() => setIsOpen(false)} className="active:ring-3 active:ring-white aspect-square size-10 p-1 items-center justify-center bg-pink-600 hover:bg-pink-700 transition text-white rounded-md flex">
